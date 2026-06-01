@@ -1,0 +1,13 @@
+{
+  "name": "Casa Chinitos",
+  "short_name": "Casa Chinitos",
+  "description": "Gestor privado de casas en compra: datos, checklist y documentos por vivienda.",
+  "icons": [
+    { "src": "/favicon.svg", "type": "image/svg+xml", "sizes": "any" },
+    { "src": "/apple-touch-icon.png", "type": "image/png", "sizes": "180x180" }
+  ],
+  "theme_color": "#6c4ce6",
+  "background_color": "#ffffff",
+  "display": "standalone",
+  "lang": "es"
+}
