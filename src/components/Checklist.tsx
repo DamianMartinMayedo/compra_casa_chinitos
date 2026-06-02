@@ -98,11 +98,12 @@ export default function Checklist({ propertyId, mode }: { propertyId: string; mo
             <label className="field__label">{item.label}</label>
             <div className="rating" role="group" aria-label={item.label}>
               {[1, 2, 3, 4, 5].map(n => {
-                const on = (r?.rating_value || 0) >= n;
+                const current = r?.rating_value || 0;
+                const on = current >= n;
                 return (
                   <button key={n} type="button" aria-pressed={on}
                     className={on ? 'rating__btn rating__btn--on' : 'rating__btn'}
-                    onClick={() => save(item.id, 'rating_value', n)}>{n}</button>
+                    onClick={() => save(item.id, 'rating_value', current === n ? (n > 1 ? n - 1 : null) : n)}>{n}</button>
                 );
               })}
             </div>

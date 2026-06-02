@@ -2,12 +2,13 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import Checklist from '../components/Checklist';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { STATUS_META, formatVisitDate, formatVisitTime, todayLocalISO, type PropertyStatus } from '../status';
 
 interface Property {
   id: string;
   name: string;
-  google_address: string;
-  price_eur: number;
+  google_address: string | null;
+  price_eur: number | null;
   municipality: string;
   idealista_url: string;
   type: string;
@@ -21,6 +22,9 @@ interface Property {
   additional_notes: string;
   budget_min_eur: number;
   budget_max_eur: number;
+  status: PropertyStatus;
+  visit_date: string | null;
+  visit_time: string | null;
 }
 
 const formatPrice = (price: number) =>
@@ -37,6 +41,7 @@ function PropertyDetail() {
   const [error, setError] = useState<string | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [statusUpdating, setStatusUpdating] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
@@ -64,6 +69,29 @@ function PropertyDetail() {
     }
   };
 
+  const changeStatus = async (status: PropertyStatus) => {
+    if (!property) return;
+    setMenuOpen(false);
+    setStatusUpdating(true);
+    const patch: { status: PropertyStatus; visit_date?: string } = { status };
+    // Al marcar como visitada sin fecha previa, registra la visita hoy.
+    if (status === 'visitada' && !property.visit_date) patch.visit_date = todayLocalISO();
+    try {
+      const res = await fetch(`/api/properties/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new Error('No se pudo actualizar el estado');
+      const updated = await res.json();
+      setProperty(updated);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al actualizar');
+    } finally {
+      setStatusUpdating(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="container page">
@@ -78,11 +106,16 @@ function PropertyDetail() {
     return <div className="container page"><div className="error">{error || 'Vivienda no encontrada'}</div></div>;
   }
 
+  const visitLabel = property.visit_date
+    ? `${formatVisitDate(property.visit_date)}${property.visit_time ? ` · ${formatVisitTime(property.visit_time)}` : ''}`
+    : null;
+
   const facts: { label: string; value: string }[] = [
-    { label: 'Precio', value: formatPrice(property.price_eur) },
+    { label: 'Precio', value: property.price_eur != null ? formatPrice(property.price_eur) : '—' },
     ...(property.built_area_m2 != null ? [{ label: 'Superficie', value: `${property.built_area_m2} m²` }] : []),
     ...(property.bedrooms != null ? [{ label: 'Habitaciones', value: String(property.bedrooms) }] : []),
     ...(property.bathrooms != null ? [{ label: 'Baños', value: String(property.bathrooms) }] : []),
+    ...(visitLabel ? [{ label: 'Visita', value: visitLabel }] : []),
   ];
 
   const extra: { label: string; value: string }[] = [
@@ -101,13 +134,24 @@ function PropertyDetail() {
       <div className="card card--pad-lg" style={{ marginBottom: 'var(--space-xl)' }}>
         <div className="flex-between flex-wrap" style={{ alignItems: 'flex-start', gap: 'var(--space-lg)' }}>
           <div style={{ minWidth: 0 }}>
-            <span className="badge badge-neutral">{property.type || 'Vivienda'}</span>
+            <div className="flex flex-wrap" style={{ gap: 'var(--space-sm)', alignItems: 'center' }}>
+              <span className="badge badge-neutral">{property.type || 'Vivienda'}</span>
+              <span className={`badge ${STATUS_META[property.status].badge}`}>{STATUS_META[property.status].label}</span>
+              {property.visit_date && (
+                <span className="text-sm text-muted">
+                  Visita {formatVisitDate(property.visit_date)}
+                  {property.visit_time && ` · ${formatVisitTime(property.visit_time)}`}
+                </span>
+              )}
+            </div>
             <h1 style={{ marginTop: '0.5rem' }}>{property.name}</h1>
             <div className="flex flex-wrap" style={{ gap: 'var(--space-md)', marginTop: '0.5rem', alignItems: 'center' }}>
-              <a href={mapsUrl(property.google_address)} target="_blank" rel="noopener noreferrer"
-                className="text-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}>
-                📍 {property.google_address}
-              </a>
+              {property.google_address && (
+                <a href={mapsUrl(property.google_address)} target="_blank" rel="noopener noreferrer"
+                  className="text-sm" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.375rem' }}>
+                  📍 {property.google_address}
+                </a>
+              )}
               {property.idealista_url && (
                 <a href={property.idealista_url} target="_blank" rel="noopener noreferrer" className="text-sm">
                   Ver anuncio ↗
@@ -116,11 +160,16 @@ function PropertyDetail() {
             </div>
           </div>
 
-          <div className="flex" style={{ gap: 'var(--space-sm)', flexShrink: 0 }}>
+          <div className="flex flex-wrap" style={{ gap: 'var(--space-sm)', flexShrink: 0 }}>
+            {property.status !== 'visitada' && (
+              <button className="btn btn-secondary" onClick={() => changeStatus('visitada')} disabled={statusUpdating || deleting}>
+                {statusUpdating ? 'Guardando…' : '✓ Marcar como visitada'}
+              </button>
+            )}
             <Link to={`/property/${property.id}/documents`} className="btn btn-secondary">Documentos</Link>
             <div className="menu">
               <button className="btn btn-secondary" aria-expanded={menuOpen} aria-haspopup="menu"
-                onClick={() => setMenuOpen(o => !o)} disabled={deleting}>
+                onClick={() => setMenuOpen(o => !o)} disabled={deleting || statusUpdating}>
                 {deleting ? 'Borrando…' : 'Opciones'}
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
                   <path d="M4 6l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -131,6 +180,20 @@ function PropertyDetail() {
                   <div className="menu__backdrop" onClick={() => setMenuOpen(false)} />
                   <div className="menu__list" role="menu">
                     <Link to={`/property/${property.id}/edit`} className="menu__item" role="menuitem">Editar</Link>
+                    {property.status === 'visitada' && (
+                      <button className="menu__item" role="menuitem" onClick={() => changeStatus('en_estudio')}>
+                        Volver a en estudio
+                      </button>
+                    )}
+                    {property.status !== 'descartada' ? (
+                      <button className="menu__item" role="menuitem" onClick={() => changeStatus('descartada')}>
+                        Descartar
+                      </button>
+                    ) : (
+                      <button className="menu__item" role="menuitem" onClick={() => changeStatus('en_estudio')}>
+                        Restaurar
+                      </button>
+                    )}
                     <button className="menu__item menu__item--danger" role="menuitem" onClick={requestDelete}>Eliminar</button>
                   </div>
                 </>

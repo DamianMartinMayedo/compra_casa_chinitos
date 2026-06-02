@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
+import { STATUS_META, STATUS_ORDER } from '../status';
+
 
 type Form = Record<string, string>;
 
 const TEXT_FIELDS: { key: string; label: string; placeholder?: string; required?: boolean }[] = [
   { key: 'name', label: 'Nombre', placeholder: 'Ej: Pilas - Calle Magallanes', required: true },
   { key: 'idealista_url', label: 'Enlace del anuncio (Idealista / Fotocasa)', placeholder: 'https://www.idealista.com/inmueble/…' },
-  { key: 'google_address', label: 'Dirección (se abrirá en Google Maps)', placeholder: 'Calle, municipio, provincia', required: true },
+  { key: 'google_address', label: 'Dirección (se abrirá en Google Maps)', placeholder: 'Calle, municipio, provincia' },
   { key: 'municipality', label: 'Municipio', placeholder: 'Ej: Pilas' },
   { key: 'type', label: 'Tipo', placeholder: 'Ej: Chalet adosado' },
 ];
@@ -28,7 +30,7 @@ const TEXTAREA_FIELDS: { key: string; label: string; placeholder?: string }[] = 
   { key: 'additional_notes', label: 'Notas adicionales', placeholder: 'Riesgos, extras, cosas a revisar…' },
 ];
 
-const ALL_KEYS = [...TEXT_FIELDS, ...NUMBER_FIELDS, ...TEXTAREA_FIELDS].map(f => f.key);
+const ALL_KEYS = [...[...TEXT_FIELDS, ...NUMBER_FIELDS, ...TEXTAREA_FIELDS].map(f => f.key), 'status', 'visit_date', 'visit_time'];
 const NUMBER_KEYS = new Set(NUMBER_FIELDS.map(f => f.key));
 
 function PropertyForm() {
@@ -36,7 +38,7 @@ function PropertyForm() {
   const navigate = useNavigate();
   const isEdit = Boolean(id);
 
-  const [form, setForm] = useState<Form>(Object.fromEntries(ALL_KEYS.map(k => [k, ''])));
+  const [form, setForm] = useState<Form>({ ...Object.fromEntries(ALL_KEYS.map(k => [k, ''])), status: 'en_estudio' });
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -125,6 +127,28 @@ function PropertyForm() {
               />
             </div>
           ))}
+        </div>
+
+        <div className="card card--pad-lg">
+          <h3 style={{ marginBottom: 'var(--space-md)' }}>Estado y visita</h3>
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 'var(--space-md)' }}>
+            <div className="field">
+              <label className="field__label" htmlFor="status">Estado</label>
+              <select id="status" value={form.status} onChange={e => set('status', e.target.value)}>
+                {STATUS_ORDER.map(s => (
+                  <option key={s} value={s}>{STATUS_META[s].label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="field">
+              <label className="field__label" htmlFor="visit_date">Fecha de visita</label>
+              <input id="visit_date" type="date" value={form.visit_date} onChange={e => set('visit_date', e.target.value)} />
+            </div>
+            <div className="field">
+              <label className="field__label" htmlFor="visit_time">Hora de visita</label>
+              <input id="visit_time" type="time" value={form.visit_time} onChange={e => set('visit_time', e.target.value)} />
+            </div>
+          </div>
         </div>
 
         <div className="card card--pad-lg">

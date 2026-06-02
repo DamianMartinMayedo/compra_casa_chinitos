@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { STATUS_META, STATUS_ORDER, formatVisitDate, formatVisitTime, type PropertyStatus } from '../status';
 
 interface Property {
   id: string;
   name: string;
   google_address: string;
-  price_eur: number;
+  price_eur: number | null;
   municipality: string;
   type: string;
   built_area_m2: number;
@@ -13,13 +14,18 @@ interface Property {
   bathrooms: number;
   budget_min_eur: number;
   budget_max_eur: number;
+  status: PropertyStatus;
+  visit_date: string | null;
+  visit_time: string | null;
 }
 
 type SortKey = 'name' | 'type' | 'price_eur' | 'built_area_m2' | 'bedrooms' | 'bathrooms' | 'budget';
 type SortDir = 'asc' | 'desc';
 
-const formatPrice = (price: number) =>
-  new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(price);
+const formatPrice = (price: number | null) =>
+  price == null
+    ? '—'
+    : new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(price);
 
 const formatK = (n: number) =>
   new Intl.NumberFormat('es-ES', { notation: 'compact', maximumFractionDigits: 0 }).format(n) + ' €';
@@ -50,6 +56,7 @@ function PropertiesList() {
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
+  const [statusFilter, setStatusFilter] = useState<PropertyStatus>('en_estudio');
 
   const handleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -60,12 +67,17 @@ function PropertiesList() {
     }
   };
 
-  const sorted = [...properties].sort((a, b) => {
+  const counts = STATUS_ORDER.reduce((acc, s) => {
+    acc[s] = properties.filter(p => p.status === s).length;
+    return acc;
+  }, {} as Record<PropertyStatus, number>);
+
+  const sorted = [...properties].filter(p => p.status === statusFilter).sort((a, b) => {
     let cmp = 0;
     switch (sortKey) {
       case 'name': cmp = a.name.localeCompare(b.name, 'es'); break;
       case 'type': cmp = (a.type || '').localeCompare(b.type || '', 'es'); break;
-      case 'price_eur': cmp = a.price_eur - b.price_eur; break;
+      case 'price_eur': cmp = (a.price_eur ?? 0) - (b.price_eur ?? 0); break;
       case 'built_area_m2': cmp = (a.built_area_m2 ?? 0) - (b.built_area_m2 ?? 0); break;
       case 'bedrooms': cmp = (a.bedrooms ?? 0) - (b.bedrooms ?? 0); break;
       case 'bathrooms': cmp = (a.bathrooms ?? 0) - (b.bathrooms ?? 0); break;
@@ -92,13 +104,30 @@ function PropertiesList() {
     <div className="container page">
       <div className="page-head">
         <div>
-          <h1>Casas en estudio</h1>
+          <h1>Casas</h1>
           <p className="page-head__sub">
             {loading ? 'Cargando…' : `${properties.length} ${properties.length === 1 ? 'casa' : 'casas'} en seguimiento`}
           </p>
         </div>
         <Link to="/property/new" className="btn btn-primary">+ Nueva casa</Link>
       </div>
+
+      {!loading && properties.length > 0 && (
+        <div className="flex flex-wrap" style={{ gap: 'var(--space-sm)', marginBottom: 'var(--space-lg)' }}>
+          {STATUS_ORDER.map(s => (
+            <button
+              key={s}
+              type="button"
+              className={`badge ${statusFilter === s ? STATUS_META[s].badge : 'badge-neutral'}`}
+              style={{ cursor: 'pointer', opacity: statusFilter === s ? 1 : 0.55 }}
+              aria-pressed={statusFilter === s}
+              onClick={() => setStatusFilter(s)}
+            >
+              {STATUS_META[s].label} ({counts[s]})
+            </button>
+          ))}
+        </div>
+      )}
 
       {loading ? (
         <div className="dtable">
@@ -121,6 +150,11 @@ function PropertiesList() {
           <div className="empty-state__title">Aún no hay casas</div>
           <p style={{ margin: '0 auto 1.25rem' }}>Da de alta la primera casa que estés mirando en Idealista o Fotocasa.</p>
           <Link to="/property/new" className="btn btn-primary">+ Nueva casa</Link>
+        </div>
+      ) : sorted.length === 0 ? (
+        <div className="empty-state">
+          <div className="empty-state__title">No hay casas {STATUS_META[statusFilter].label.toLowerCase()}</div>
+          <p style={{ margin: 0 }}>Cambia de pestaña para ver las demás casas.</p>
         </div>
       ) : (
         <div className="dtable" role="table">
@@ -149,7 +183,15 @@ function PropertiesList() {
           </div>
           {sorted.map(property => (
             <Link key={property.id} to={`/property/${property.id}`} className="dtable__row" role="row">
-              <span className="dtable__name" title={property.name}>{property.name}</span>
+              <span style={{ minWidth: 0 }}>
+                <span className="dtable__name" style={{ display: 'block' }} title={property.name}>{property.name}</span>
+                {property.visit_date && (
+                  <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-xs)' }}>
+                    Visita {formatVisitDate(property.visit_date, { day: 'numeric', month: 'short' })}
+                    {property.visit_time && ` · ${formatVisitTime(property.visit_time)}`}
+                  </span>
+                )}
+              </span>
               <span className="col-sec">
                 <span className="badge badge-neutral">{property.type || '—'}</span>
               </span>

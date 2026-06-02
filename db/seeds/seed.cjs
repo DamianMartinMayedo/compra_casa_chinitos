@@ -53,12 +53,27 @@ async function seed() {
       budget_min_eur: 2500,
       budget_max_eur: 10500,
     },
+    {
+      name: 'Ref. 111589969 · visita 2 jun',
+      idealista_url: 'https://www.idealista.com/inmueble/111589969/',
+      status: 'en_estudio',
+      visit_date: '2026-06-02',
+      additional_notes: 'Visita concertada para el 2 de junio. Pendiente de completar precio, dirección y características del anuncio.',
+    },
+    {
+      name: 'Ref. 109643913 · 3 hab',
+      idealista_url: 'https://www.idealista.com/inmueble/109643913/',
+      price_eur: 99900,
+      bedrooms: 3,
+      status: 'en_estudio',
+      additional_notes: 'Opción de 3 habitaciones por 99.900 €. Pendiente de completar dirección y resto de características.',
+    },
   ];
 
   for (const prop of properties) {
     await sql`
-      INSERT INTO properties (name, google_address, price_eur, municipality, idealista_url, type, built_area_m2, plot_area_m2, bedrooms, bathrooms, floors, year_built, initial_state_summary, additional_notes, budget_min_eur, budget_max_eur)
-      VALUES (${prop.name}, ${prop.google_address}, ${prop.price_eur}, ${prop.municipality || null}, ${prop.idealista_url || null}, ${prop.type || null}, ${prop.built_area_m2 || null}, ${prop.plot_area_m2 || null}, ${prop.bedrooms || null}, ${prop.bathrooms || null}, ${prop.floors || null}, ${prop.year_built || null}, ${prop.initial_state_summary || null}, ${prop.additional_notes || null}, ${prop.budget_min_eur || null}, ${prop.budget_max_eur || null})
+      INSERT INTO properties (name, google_address, price_eur, municipality, idealista_url, type, built_area_m2, plot_area_m2, bedrooms, bathrooms, floors, year_built, initial_state_summary, additional_notes, budget_min_eur, budget_max_eur, status, visit_date)
+      VALUES (${prop.name}, ${prop.google_address || null}, ${prop.price_eur || null}, ${prop.municipality || null}, ${prop.idealista_url || null}, ${prop.type || null}, ${prop.built_area_m2 || null}, ${prop.plot_area_m2 || null}, ${prop.bedrooms || null}, ${prop.bathrooms || null}, ${prop.floors || null}, ${prop.year_built || null}, ${prop.initial_state_summary || null}, ${prop.additional_notes || null}, ${prop.budget_min_eur || null}, ${prop.budget_max_eur || null}, ${prop.status || 'en_estudio'}, ${prop.visit_date || null})
       ON CONFLICT DO NOTHING
     `;
   }

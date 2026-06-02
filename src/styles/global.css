@@ -644,6 +644,13 @@ a.btn-danger:hover {
   color: oklch(1 0 0);
 }
 
+.rating__btn--on:hover {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: oklch(1 0 0);
+  filter: brightness(0.88);
+}
+
 /* Checklist manager rows */
 .item-row {
   display: flex;
