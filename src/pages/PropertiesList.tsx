@@ -58,7 +58,7 @@ function PropertiesList() {
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
-  const [statusFilter, setStatusFilter] = useState<PropertyStatus>('en_estudio');
+  const [statusFilter, setStatusFilter] = useState<PropertyStatus>('por_visitar');
 
   // Batch selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -270,9 +270,11 @@ function PropertiesList() {
           </span>
           <div className="flex flex-wrap" style={{ gap: 'var(--space-sm)' }}>
             <button className="btn btn-secondary" disabled={batchLoading}
-              onClick={() => batchPatch({ status: 'en_estudio' })}>En estudio</button>
+              onClick={() => batchPatch({ status: 'nueva' })}>De interés</button>
             <button className="btn btn-secondary" disabled={batchLoading}
-              onClick={() => batchPatch({ status: 'visitada' })}>Visitada</button>
+              onClick={() => batchPatch({ status: 'por_visitar' })}>Por visitar</button>
+            <button className="btn btn-secondary" disabled={batchLoading}
+              onClick={() => batchPatch({ status: 'me_interesa' })}>Visitada</button>
             <button className="btn btn-secondary" disabled={batchLoading}
               onClick={() => batchPatch({ status: 'descartada' })}>Descartar</button>
             <button className="btn btn-danger" disabled={batchLoading}

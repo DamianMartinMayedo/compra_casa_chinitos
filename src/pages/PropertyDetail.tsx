@@ -33,6 +33,16 @@ const formatPrice = (price: number) =>
 const mapsUrl = (address: string) =>
   `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
 
+interface Contact {
+  id: string;
+  property_id: string;
+  name: string;
+  role: string | null;
+  phone: string | null;
+  email: string | null;
+  notes: string | null;
+}
+
 function PropertyDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -43,6 +53,42 @@ function PropertyDetail() {
   const [deleting, setDeleting] = useState(false);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
+  // Contacts
+  const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contactForm, setContactForm] = useState<Partial<Contact> | null>(null);
+  const [contactSaving, setContactSaving] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/contacts?property_id=${id}`)
+      .then(r => r.json())
+      .then(setContacts)
+      .catch(() => {});
+  }, [id]);
+
+  const saveContact = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!contactForm) return;
+    setContactSaving(true);
+    const isNew = !contactForm.id;
+    const url = isNew ? '/api/contacts' : `/api/contacts/${contactForm.id}`;
+    const body = isNew
+      ? { property_id: id, name: contactForm.name, role: contactForm.role || null, phone: contactForm.phone || null, email: contactForm.email || null, notes: contactForm.notes || null }
+      : { name: contactForm.name, role: contactForm.role || null, phone: contactForm.phone || null, email: contactForm.email || null, notes: contactForm.notes || null };
+    const res = await fetch(url, { method: isNew ? 'POST' : 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    const saved = await res.json();
+    setContacts(prev => isNew ? [...prev, saved] : prev.map(c => c.id === saved.id ? saved : c));
+    setContactForm(null);
+    setContactSaving(false);
+  };
+
+  const deleteContact = async (contactId: string) => {
+    await fetch(`/api/contacts/${contactId}`, { method: 'DELETE' });
+    setContacts(prev => prev.filter(c => c.id !== contactId));
+  };
+
+  const setField = (f: keyof Contact, v: string) =>
+    setContactForm(prev => prev ? { ...prev, [f]: v } : prev);
 
   useEffect(() => {
     fetch(`/api/properties/${id}`)
@@ -74,8 +120,8 @@ function PropertyDetail() {
     setMenuOpen(false);
     setStatusUpdating(true);
     const patch: { status: PropertyStatus; visit_date?: string } = { status };
-    // Al marcar como visitada sin fecha previa, registra la visita hoy.
-    if (status === 'visitada' && !property.visit_date) patch.visit_date = todayLocalISO();
+    // Al marcar como me interesa sin fecha previa, registra la visita hoy.
+    if (status === 'me_interesa' && !property.visit_date) patch.visit_date = todayLocalISO();
     try {
       const res = await fetch(`/api/properties/${id}`, {
         method: 'PATCH',
@@ -161,13 +207,19 @@ function PropertyDetail() {
           </div>
 
           <div className="flex flex-wrap" style={{ gap: 'var(--space-sm)', flexShrink: 0, marginLeft: 'auto' }}>
-            {/* Visible on desktop only — on mobile these live inside the menu */}
-            {property.status !== 'visitada' && (
-              <button className="btn btn-secondary hide-mobile" onClick={() => changeStatus('visitada')} disabled={statusUpdating || deleting}>
-                {statusUpdating ? 'Guardando…' : '✓ Marcar como visitada'}
+            {/* Primary CTA — desktop: visible button; mobile: inside menu */}
+            {property.status === 'nueva' && (
+              <button className="btn btn-secondary hide-mobile" onClick={() => changeStatus('por_visitar')} disabled={statusUpdating || deleting}>
+                {statusUpdating ? 'Guardando…' : '📅 Por visitar'}
+              </button>
+            )}
+            {property.status === 'por_visitar' && (
+              <button className="btn btn-secondary hide-mobile" onClick={() => changeStatus('me_interesa')} disabled={statusUpdating || deleting}>
+                {statusUpdating ? 'Guardando…' : '✓ Me interesa ★'}
               </button>
             )}
             <Link to={`/property/${property.id}/documents`} className="btn btn-secondary hide-mobile">Documentos</Link>
+
             <div className="menu">
               <button className="btn btn-secondary" aria-expanded={menuOpen} aria-haspopup="menu"
                 onClick={() => setMenuOpen(o => !o)} disabled={deleting || statusUpdating}>
@@ -180,22 +232,33 @@ function PropertyDetail() {
                 <>
                   <div className="menu__backdrop" onClick={() => setMenuOpen(false)} />
                   <div className="menu__list" role="menu">
-                    {/* Mobile-only actions (hidden on desktop via CSS) */}
-                    {property.status !== 'visitada' && (
+                    {/* Mobile-only CTAs */}
+                    {property.status === 'nueva' && (
                       <button className="menu__item show-mobile" role="menuitem"
-                        onClick={() => { setMenuOpen(false); changeStatus('visitada'); }}>
-                        ✓ Marcar como visitada
+                        onClick={() => { setMenuOpen(false); changeStatus('por_visitar'); }}>
+                        📅 Por visitar
+                      </button>
+                    )}
+                    {property.status === 'por_visitar' && (
+                      <button className="menu__item show-mobile" role="menuitem"
+                        onClick={() => { setMenuOpen(false); changeStatus('me_interesa'); }}>
+                        ✓ Me interesa ★
                       </button>
                     )}
                     <Link to={`/property/${property.id}/documents`} className="menu__item show-mobile" role="menuitem"
                       onClick={() => setMenuOpen(false)}>
                       Documentos
                     </Link>
-                    {/* Always visible */}
+                    {/* Always */}
                     <Link to={`/property/${property.id}/edit`} className="menu__item" role="menuitem">Editar</Link>
-                    {property.status === 'visitada' && (
-                      <button className="menu__item" role="menuitem" onClick={() => changeStatus('en_estudio')}>
-                        Volver a en estudio
+                    {property.status === 'me_interesa' && (
+                      <button className="menu__item" role="menuitem" onClick={() => changeStatus('por_visitar')}>
+                        Volver a por visitar
+                      </button>
+                    )}
+                    {property.status === 'por_visitar' && (
+                      <button className="menu__item" role="menuitem" onClick={() => changeStatus('nueva')}>
+                        Volver a Nueva
                       </button>
                     )}
                     {property.status !== 'descartada' ? (
@@ -203,7 +266,7 @@ function PropertyDetail() {
                         Descartar
                       </button>
                     ) : (
-                      <button className="menu__item" role="menuitem" onClick={() => changeStatus('en_estudio')}>
+                      <button className="menu__item" role="menuitem" onClick={() => changeStatus('nueva')}>
                         Restaurar
                       </button>
                     )}
@@ -267,6 +330,99 @@ function PropertyDetail() {
               )}
             </div>
           </details>
+        )}
+      </div>
+
+      {/* ── Contactos ──────────────────────────────────────────────────── */}
+      <div className="card card--pad-lg" style={{ marginBottom: 'var(--space-xl)' }}>
+        <div className="flex-between" style={{ marginBottom: contacts.length || contactForm !== null ? 'var(--space-md)' : 0 }}>
+          <h2 style={{ margin: 0, fontSize: 'var(--text-lg)' }}>Contactos</h2>
+          {contactForm === null && (
+            <button className="btn btn-secondary" onClick={() => setContactForm({})}>+ Añadir</button>
+          )}
+        </div>
+
+        {contacts.length === 0 && contactForm === null && (
+          <p style={{ margin: 0, color: 'var(--color-ink-tertiary)', fontSize: 'var(--text-sm)' }}>
+            Sin contactos — añade el agente o propietario.
+          </p>
+        )}
+
+        <div className="stack">
+          {contacts.map(c => (
+            <div key={c.id} className="contact-card">
+              <div className="contact-card__body">
+                <div className="contact-card__top">
+                  <span className="contact-card__name">{c.name}</span>
+                  {c.role && <span className="badge badge-neutral">{c.role}</span>}
+                </div>
+                <div className="contact-card__links">
+                  {c.phone && (
+                    <a href={`tel:${c.phone}`} className="contact-card__link">
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+                        <path d="M11.5 9.5c-.5-.5-1.5-1-2-.5l-.5.5C8.5 10 7 9.5 5.5 8S4 5.5 4.5 5L5 4.5c.5-.5 0-1.5-.5-2L3 1C2.5.5 1.5.5 1 1 .5 1.5 0 3 1 5.5S5 11 7.5 12s4--.5 4.5-1c.5-.5.5-1.5 0-2L11.5 9.5z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                      </svg>
+                      {c.phone}
+                    </a>
+                  )}
+                  {c.email && (
+                    <a href={`mailto:${c.email}`} className="contact-card__link">
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true" style={{ flexShrink: 0 }}>
+                        <rect x="1" y="3" width="12" height="8" rx="1.5" stroke="currentColor" strokeWidth="1.2"/>
+                        <path d="M1 4l6 4 6-4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+                      </svg>
+                      {c.email}
+                    </a>
+                  )}
+                </div>
+                {c.notes && <p className="contact-card__notes">{c.notes}</p>}
+              </div>
+              <div className="contact-card__actions">
+                <button className="btn btn-ghost" style={{ fontSize: 'var(--text-xs)', padding: '0.25rem 0.5rem' }}
+                  onClick={() => setContactForm(c)}>Editar</button>
+                <button className="btn btn-ghost" style={{ fontSize: 'var(--text-xs)', padding: '0.25rem 0.5rem', color: 'var(--color-error)' }}
+                  onClick={() => deleteContact(c.id)}>✕</button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {contactForm !== null && (
+          <form onSubmit={saveContact} className="contact-form stack">
+            <div className="grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 'var(--space-md)' }}>
+              <div className="field">
+                <label className="field__label">Nombre *</label>
+                <input required value={contactForm.name || ''} onChange={e => setField('name', e.target.value)} placeholder="Juan García" />
+              </div>
+              <div className="field">
+                <label className="field__label">Rol</label>
+                <select value={contactForm.role || ''} onChange={e => setField('role', e.target.value)}>
+                  <option value="">—</option>
+                  <option>Agente</option>
+                  <option>Propietario</option>
+                  <option>Otro</option>
+                </select>
+              </div>
+              <div className="field">
+                <label className="field__label">Teléfono</label>
+                <input type="tel" value={contactForm.phone || ''} onChange={e => setField('phone', e.target.value)} placeholder="+34 600 000 000" />
+              </div>
+              <div className="field">
+                <label className="field__label">Email</label>
+                <input type="email" value={contactForm.email || ''} onChange={e => setField('email', e.target.value)} placeholder="agente@inmobiliaria.es" />
+              </div>
+            </div>
+            <div className="field">
+              <label className="field__label">Notas</label>
+              <input value={contactForm.notes || ''} onChange={e => setField('notes', e.target.value)} placeholder="Disponible tardes, pedir nota simple…" />
+            </div>
+            <div className="flex" style={{ gap: 'var(--space-sm)', justifyContent: 'flex-end' }}>
+              <button type="button" className="btn btn-ghost" onClick={() => setContactForm(null)}>Cancelar</button>
+              <button type="submit" className="btn btn-primary" disabled={contactSaving}>
+                {contactSaving ? 'Guardando…' : 'Guardar contacto'}
+              </button>
+            </div>
+          </form>
         )}
       </div>
 

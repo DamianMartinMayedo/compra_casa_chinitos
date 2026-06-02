@@ -55,7 +55,7 @@ export default function Comparativa() {
       fetch('/api/checklist/sections').then(r => r.json()),
       fetch('/api/checklist/items').then(r => r.json()),
     ]).then(([props, secs, its]) => {
-      setVisitadas((props as Property[]).filter(p => p.status === 'visitada'));
+      setVisitadas((props as Property[]).filter(p => p.status === 'me_interesa'));
       setSections((secs as Section[]).sort((a, b) => a.sort_order - b.sort_order));
       setItems((its as Item[]).filter(i => i.is_active !== false));
       setLoading(false);
@@ -217,15 +217,15 @@ export default function Comparativa() {
       <div className="page-head">
         <div>
           <h1>Comparativa</h1>
-          <p className="page-head__sub">Selecciona hasta 3 casas visitadas para comparar</p>
+          <p className="page-head__sub">Selecciona hasta 3 casas que te interesan para comparar</p>
         </div>
       </div>
 
       {visitadas.length === 0 ? (
         <div className="empty-state">
-          <div className="empty-state__title">Sin visitas aún</div>
+          <div className="empty-state__title">Sin casas de interés aún</div>
           <p style={{ margin: '0 auto 1.25rem' }}>
-            Marca casas como <strong>Visitada</strong> para poder compararlas aquí.
+            Marca casas como <strong>Me interesa</strong> para poder compararlas aquí.
           </p>
           <Link to="/" className="btn btn-primary">Ver casas</Link>
         </div>

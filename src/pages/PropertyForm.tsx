@@ -38,7 +38,7 @@ function PropertyForm() {
   const navigate = useNavigate();
   const isEdit = Boolean(id);
 
-  const [form, setForm] = useState<Form>({ ...Object.fromEntries(ALL_KEYS.map(k => [k, ''])), status: 'en_estudio' });
+  const [form, setForm] = useState<Form>({ ...Object.fromEntries(ALL_KEYS.map(k => [k, ''])), status: 'nueva' });
   const [loading, setLoading] = useState(isEdit);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);

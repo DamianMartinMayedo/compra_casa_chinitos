@@ -44,7 +44,7 @@ export async function handler(event) {
       const data = JSON.parse(event.body);
       const result = await sql`
         INSERT INTO properties (name, google_address, price_eur, municipality, idealista_url, type, built_area_m2, plot_area_m2, bedrooms, bathrooms, floors, year_built, initial_state_summary, additional_notes, budget_min_eur, budget_max_eur, status, visit_date, visit_time)
-        VALUES (${data.name}, ${data.google_address || null}, ${data.price_eur || null}, ${data.municipality || null}, ${data.idealista_url || null}, ${data.type || null}, ${data.built_area_m2 || null}, ${data.plot_area_m2 || null}, ${data.bedrooms || null}, ${data.bathrooms || null}, ${data.floors || null}, ${data.year_built || null}, ${data.initial_state_summary || null}, ${data.additional_notes || null}, ${data.budget_min_eur || null}, ${data.budget_max_eur || null}, ${data.status || 'en_estudio'}, ${data.visit_date || null}, ${data.visit_time || null})
+        VALUES (${data.name}, ${data.google_address || null}, ${data.price_eur || null}, ${data.municipality || null}, ${data.idealista_url || null}, ${data.type || null}, ${data.built_area_m2 || null}, ${data.plot_area_m2 || null}, ${data.bedrooms || null}, ${data.bathrooms || null}, ${data.floors || null}, ${data.year_built || null}, ${data.initial_state_summary || null}, ${data.additional_notes || null}, ${data.budget_min_eur || null}, ${data.budget_max_eur || null}, ${data.status || 'nueva'}, ${data.visit_date || null}, ${data.visit_time || null})
         RETURNING *
       `;
       return { statusCode: 201, headers, body: JSON.stringify(normalize(result[0])) };
