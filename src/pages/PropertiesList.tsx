@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { STATUS_META, STATUS_ORDER, formatVisitDate, formatVisitTime, type PropertyStatus } from '../status';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 interface Property {
   id: string;
@@ -51,6 +52,7 @@ function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
 }
 
 function PropertiesList() {
+  const navigate = useNavigate();
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -58,13 +60,49 @@ function PropertiesList() {
   const [sortDir, setSortDir] = useState<SortDir>('asc');
   const [statusFilter, setStatusFilter] = useState<PropertyStatus>('en_estudio');
 
+  // Batch selection
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchLoading, setBatchLoading] = useState(false);
+  const [showBatchDelete, setShowBatchDelete] = useState(false);
+
+  const clearSelection = () => setSelectedIds(new Set());
+
+  const toggleSelection = (id: string) =>
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+
+  const selectAll = () =>
+    setSelectedIds(prev => prev.size === sorted.length ? new Set() : new Set(sorted.map(p => p.id)));
+
+  const batchPatch = async (patch: Partial<Pick<Property, 'status'>>) => {
+    setBatchLoading(true);
+    await Promise.all([...selectedIds].map(id =>
+      fetch(`/api/properties/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      })
+    ));
+    setProperties(prev => prev.map(p => selectedIds.has(p.id) ? { ...p, ...patch } : p));
+    clearSelection();
+    setBatchLoading(false);
+  };
+
+  const batchDelete = async () => {
+    setShowBatchDelete(false);
+    setBatchLoading(true);
+    await Promise.all([...selectedIds].map(id => fetch(`/api/properties/${id}`, { method: 'DELETE' })));
+    setProperties(prev => prev.filter(p => !selectedIds.has(p.id)));
+    clearSelection();
+    setBatchLoading(false);
+  };
+
   const handleSort = (key: SortKey) => {
-    if (sortKey === key) {
-      setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    } else {
-      setSortKey(key);
-      setSortDir('asc');
-    }
+    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
+    else { setSortKey(key); setSortDir('asc'); }
   };
 
   const counts = STATUS_ORDER.reduce((acc, s) => {
@@ -88,20 +126,47 @@ function PropertiesList() {
 
   useEffect(() => {
     fetch('/api/properties')
-      .then(res => {
-        if (!res.ok) throw new Error('No se pudieron cargar las viviendas');
-        return res.json();
-      })
+      .then(res => { if (!res.ok) throw new Error('No se pudieron cargar las viviendas'); return res.json(); })
       .then(data => { setProperties(data); setLoading(false); })
       .catch(err => { setError(err.message); setLoading(false); });
   }, []);
 
-  if (error) {
-    return <div className="container page"><div className="error">{error}</div></div>;
-  }
+  if (error) return <div className="container page"><div className="error">{error}</div></div>;
+
+  const rowCells = (property: Property) => (
+    <>
+      <span style={{ minWidth: 0, display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+        <input
+          type="checkbox"
+          checked={selectedIds.has(property.id)}
+          onChange={() => toggleSelection(property.id)}
+          onClick={e => e.stopPropagation()}
+          style={{ flexShrink: 0, marginTop: '0.2rem', width: '1rem', height: '1rem', cursor: 'pointer', accentColor: 'var(--color-accent)' }}
+        />
+        <span style={{ minWidth: 0 }}>
+          <span className="dtable__name" style={{ display: 'block' }} title={property.name}>{property.name}</span>
+          {property.visit_date && (
+            <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-xs)' }}>
+              Visita {formatVisitDate(property.visit_date, { day: 'numeric', month: 'short' })}
+              {property.visit_time && ` · ${formatVisitTime(property.visit_time)}`}
+            </span>
+          )}
+        </span>
+      </span>
+      <span className="col-sec"><span className="badge badge-neutral">{property.type || '—'}</span></span>
+      <span className="num price">{formatPrice(property.price_eur)}</span>
+      <span className="col-sec num tabular">{property.built_area_m2 != null ? `${property.built_area_m2} m²` : '—'}</span>
+      <span className="col-sec num tabular">{property.bedrooms ?? '—'}</span>
+      <span className="col-sec num tabular">{property.bathrooms ?? '—'}</span>
+      <span className="col-sec num tabular text-muted">
+        {property.budget_min_eur != null && property.budget_max_eur != null
+          ? `${formatK(property.budget_min_eur)}–${formatK(property.budget_max_eur)}` : '—'}
+      </span>
+    </>
+  );
 
   return (
-    <div className="container page">
+    <div className="container page" style={selectedIds.size > 0 ? { paddingBottom: '5rem' } : undefined}>
       <div className="page-head">
         <div>
           <h1>Casas</h1>
@@ -115,14 +180,11 @@ function PropertiesList() {
       {!loading && properties.length > 0 && (
         <div className="flex flex-wrap" style={{ gap: 'var(--space-sm)', marginBottom: 'var(--space-lg)' }}>
           {STATUS_ORDER.map(s => (
-            <button
-              key={s}
-              type="button"
+            <button key={s} type="button"
               className={`badge ${statusFilter === s ? STATUS_META[s].badge : 'badge-neutral'}`}
               style={{ cursor: 'pointer', opacity: statusFilter === s ? 1 : 0.55 }}
               aria-pressed={statusFilter === s}
-              onClick={() => setStatusFilter(s)}
-            >
+              onClick={() => { setStatusFilter(s); clearSelection(); }}>
               {STATUS_META[s].label} ({counts[s]})
             </button>
           ))}
@@ -154,15 +216,23 @@ function PropertiesList() {
       ) : sorted.length === 0 ? (
         <div className="empty-state">
           <div className="empty-state__title">No hay casas {STATUS_META[statusFilter].label.toLowerCase()}</div>
-          <p style={{ margin: 0 }}>Cambia de pestaña para ver las demás casas.</p>
+          <p style={{ margin: '0 auto' }}>Cambia de pestaña para ver las demás casas.</p>
         </div>
       ) : (
         <div className="dtable" role="table">
           <div className="dtable__head" role="row">
-            <span role="columnheader" className="sort-header" onClick={() => handleSort('name')} title="Ordenar por nombre">
-              Casa <SortIcon active={sortKey === 'name'} dir={sortDir} />
+            <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <input type="checkbox"
+                checked={selectedIds.size === sorted.length && sorted.length > 0}
+                onChange={selectAll}
+                style={{ width: '1rem', height: '1rem', cursor: 'pointer', accentColor: 'var(--color-accent)', flexShrink: 0 }}
+                title="Seleccionar todas"
+              />
+              <span role="columnheader" className="sort-header" onClick={() => handleSort('name')} title="Ordenar por nombre">
+                Casa <SortIcon active={sortKey === 'name'} dir={sortDir} />
+              </span>
             </span>
-            <span className="col-sec" role="columnheader" onClick={() => handleSort('type')} title="Ordenar por tipo">
+            <span className="col-sec sort-header" role="columnheader" onClick={() => handleSort('type')} title="Ordenar por tipo">
               Tipo <SortIcon active={sortKey === 'type'} dir={sortDir} />
             </span>
             <span className="num sort-header" role="columnheader" onClick={() => handleSort('price_eur')} title="Ordenar por precio">
@@ -182,32 +252,45 @@ function PropertiesList() {
             </span>
           </div>
           {sorted.map(property => (
-            <Link key={property.id} to={`/property/${property.id}`} className="dtable__row" role="row">
-              <span style={{ minWidth: 0 }}>
-                <span className="dtable__name" style={{ display: 'block' }} title={property.name}>{property.name}</span>
-                {property.visit_date && (
-                  <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-xs)' }}>
-                    Visita {formatVisitDate(property.visit_date, { day: 'numeric', month: 'short' })}
-                    {property.visit_time && ` · ${formatVisitTime(property.visit_time)}`}
-                  </span>
-                )}
-              </span>
-              <span className="col-sec">
-                <span className="badge badge-neutral">{property.type || '—'}</span>
-              </span>
-              <span className="num price">{formatPrice(property.price_eur)}</span>
-              <span className="col-sec num tabular">{property.built_area_m2 != null ? `${property.built_area_m2} m²` : '—'}</span>
-              <span className="col-sec num tabular">{property.bedrooms ?? '—'}</span>
-              <span className="col-sec num tabular">{property.bathrooms ?? '—'}</span>
-              <span className="col-sec num tabular text-muted">
-                {property.budget_min_eur != null && property.budget_max_eur != null
-                  ? `${formatK(property.budget_min_eur)}–${formatK(property.budget_max_eur)}`
-                  : '—'}
-              </span>
-            </Link>
+            <div key={property.id} role="row"
+              className={`dtable__row${selectedIds.has(property.id) ? ' dtable__row--selected' : ''}`}
+              style={{ cursor: 'pointer' }}
+              onClick={() => navigate(`/property/${property.id}`)}>
+              {rowCells(property)}
+            </div>
           ))}
         </div>
       )}
+
+      {/* Batch action bar — appears when anything is checked */}
+      {selectedIds.size > 0 && (
+        <div className="batch-bar">
+          <span className="batch-bar__info">
+            {selectedIds.size} seleccionada{selectedIds.size !== 1 ? 's' : ''}
+          </span>
+          <div className="flex flex-wrap" style={{ gap: 'var(--space-sm)' }}>
+            <button className="btn btn-secondary" disabled={batchLoading}
+              onClick={() => batchPatch({ status: 'en_estudio' })}>En estudio</button>
+            <button className="btn btn-secondary" disabled={batchLoading}
+              onClick={() => batchPatch({ status: 'visitada' })}>Visitada</button>
+            <button className="btn btn-secondary" disabled={batchLoading}
+              onClick={() => batchPatch({ status: 'descartada' })}>Descartar</button>
+            <button className="btn btn-danger" disabled={batchLoading}
+              onClick={() => setShowBatchDelete(true)}>Eliminar</button>
+            <button className="btn btn-ghost" disabled={batchLoading}
+              onClick={clearSelection}>✕</button>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={showBatchDelete}
+        title="Eliminar casas"
+        message={`¿Eliminar ${selectedIds.size} casa${selectedIds.size !== 1 ? 's' : ''}? Esta acción no se puede deshacer.`}
+        confirmLabel="Eliminar"
+        onConfirm={batchDelete}
+        onCancel={() => setShowBatchDelete(false)}
+      />
     </div>
   );
 }

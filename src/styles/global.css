@@ -1154,6 +1154,77 @@ button.badge:active {
   .cmp-grid { min-width: 420px; }
 }
 
+/* ── Responsive utilities ─────────────────────────────────────────────────── */
+@media (max-width: 760px) { .hide-mobile { display: none !important; } }
+.show-mobile { display: none !important; }
+@media (max-width: 760px) { .show-mobile { display: revert !important; } }
+
+/* ── Batch action bar (floating, fixed bottom) ────────────────────────────── */
+.batch-bar {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  background: var(--color-surface);
+  border-top: 2px solid var(--color-border);
+  padding: var(--space-md) var(--space-lg);
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  flex-wrap: wrap;
+  z-index: 200;
+  box-shadow: 0 -4px 24px oklch(0 0 0 / 0.08);
+}
+.batch-bar__info {
+  flex: 1;
+  min-width: 8rem;
+  font-weight: 600;
+  font-size: var(--text-sm);
+  color: var(--color-ink-secondary);
+}
+@media (max-width: 480px) {
+  .batch-bar { padding: var(--space-sm) var(--space-md); gap: var(--space-sm); }
+  .batch-bar__info { width: 100%; flex: none; }
+}
+
+/* Selected dtable row */
+.dtable__row--selected,
+.dtable__row--selected:hover { background: var(--color-accent-subtle) !important; color: var(--color-ink); }
+
+/* ── Comparison mobile cards ──────────────────────────────────────────────── */
+.cmp-grid-wrap { display: block; }
+.cmp-mobile-cards { display: none; flex-direction: column; gap: var(--space-lg); }
+@media (max-width: 640px) {
+  .cmp-grid-wrap { display: none; }
+  .cmp-mobile-cards { display: flex; }
+}
+.cmp-card-section {
+  border-top: 1px solid var(--color-border);
+  padding-top: var(--space-md);
+  margin-top: var(--space-md);
+}
+.cmp-card-section__title {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-ink-tertiary);
+  margin-bottom: var(--space-sm);
+}
+.cmp-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: 0.3rem 0;
+  border-bottom: 1px solid var(--color-border);
+}
+.cmp-card-row:last-child { border-bottom: none; }
+.cmp-card-row__label {
+  color: var(--color-ink-secondary);
+  font-size: var(--text-xs);
+  flex-shrink: 0;
+  max-width: 55%;
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

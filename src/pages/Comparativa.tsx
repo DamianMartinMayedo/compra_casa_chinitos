@@ -257,20 +257,99 @@ export default function Comparativa() {
             })}
           </div>
 
-          {/* ── Comparison grid ───────────────────────────────────────────── */}
+          {/* ── Comparison ───────────────────────────────────────────────── */}
           {N < 2 ? (
             <div className="inset" style={{ textAlign: 'center', padding: 'var(--space-xl)', color: 'var(--color-ink-secondary)' }}>
               Selecciona al menos 2 casas para ver la comparativa
             </div>
           ) : (
-            <div className="cmp-scroll">
-              <div
-                className="cmp-grid"
-                style={{ gridTemplateColumns: `8rem repeat(${N}, 1fr)` }}
-              >
-                {cells}
+            <>
+              {/* Desktop: horizontal scrollable grid */}
+              <div className="cmp-grid-wrap">
+                <div className="cmp-scroll">
+                  <div className="cmp-grid" style={{ gridTemplateColumns: `8rem repeat(${N}, 1fr)` }}>
+                    {cells}
+                  </div>
+                </div>
               </div>
-            </div>
+
+              {/* Mobile: stacked cards, one per property */}
+              <div className="cmp-mobile-cards">
+                {selProps.map(p => {
+                  const resp = respCache[p.id] || {};
+                  return (
+                    <div key={p.id} className="card card--pad-lg">
+                      {/* Header */}
+                      <Link to={`/property/${p.id}`} style={{ fontWeight: 700, display: 'block', marginBottom: '0.25rem' }}>
+                        {p.name}
+                      </Link>
+                      {p.type && <span className="badge badge-neutral" style={{ marginBottom: '0.5rem' }}>{p.type}</span>}
+                      <div className="price" style={{ fontSize: 'var(--text-xl)', fontWeight: 700 }}>{fmtPrice(p.price_eur)}</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginTop: '0.375rem', fontSize: 'var(--text-xs)', color: 'var(--color-ink-secondary)' }}>
+                        {p.built_area_m2 != null && <span>{p.built_area_m2} m²</span>}
+                        {p.bedrooms != null && <span>{p.bedrooms} hab.</span>}
+                        {p.bathrooms != null && <span>{p.bathrooms} baños</span>}
+                        {p.visit_date && (
+                          <span>{formatVisitDate(p.visit_date, { day: 'numeric', month: 'short' })}{p.visit_time && ` · ${formatVisitTime(p.visit_time)}`}</span>
+                        )}
+                      </div>
+
+                      {/* Sections */}
+                      {sectionList.map(section => {
+                        const secItems = itemsOf(section.id);
+                        if (!secItems.length) return null;
+                        const checkboxItems = secItems.filter(i => i.item_type === 'checkbox');
+                        const otherItems = secItems.filter(i => i.item_type !== 'checkbox');
+                        const checked = checkboxItems.filter(i => resp[i.id]?.checked);
+                        return (
+                          <div key={section.id} className="cmp-card-section">
+                            <div className="cmp-card-section__title">{section.name}</div>
+                            {checkboxItems.length > 0 && (
+                              <div className="cmp-card-row">
+                                <span className="cmp-card-row__label">Checks ✓</span>
+                                <div style={{ textAlign: 'right' }}>
+                                  <span style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: checked.length === checkboxItems.length ? 'var(--color-success)' : checked.length === 0 ? 'var(--color-ink-tertiary)' : undefined }}>
+                                    {checked.length}/{checkboxItems.length}
+                                  </span>
+                                  {checked.length > 0 && (
+                                    <ul style={{ margin: '0.25rem 0 0', padding: '0 0 0 1rem', fontSize: 'var(--text-xs)', color: 'var(--color-ink-secondary)' }}>
+                                      {checked.map(i => <li key={i.id}>{i.label}</li>)}
+                                    </ul>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                            {otherItems.map(item => {
+                              const r = resp[item.id];
+                              let val: ReactNode = <span className="text-muted">—</span>;
+                              if (item.item_type === 'rating') val = <RatingBar value={r?.rating_value ?? null} />;
+                              else if (item.item_type === 'textarea') val = r?.text_value ? <span style={{ fontSize: 'var(--text-xs)', whiteSpace: 'pre-wrap' }}>{r.text_value}</span> : <span className="text-muted">—</span>;
+                              else if (item.item_type === 'number') val = r?.number_value != null ? <span className="price">{fmtPrice(r.number_value)}</span> : <span className="text-muted">—</span>;
+                              return (
+                                <div key={item.id} className="cmp-card-row">
+                                  <span className="cmp-card-row__label">{item.label}</span>
+                                  <div style={{ textAlign: 'right' }}>{val}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        );
+                      })}
+
+                      {/* Property notes */}
+                      {p.additional_notes && (
+                        <div className="cmp-card-section">
+                          <div className="cmp-card-section__title">Notas</div>
+                          <p style={{ margin: 0, fontSize: 'var(--text-xs)', color: 'var(--color-ink-secondary)', whiteSpace: 'pre-wrap' }}>
+                            {p.additional_notes}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </>
           )}
         </>
       )}

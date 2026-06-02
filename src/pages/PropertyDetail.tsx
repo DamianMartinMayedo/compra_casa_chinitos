@@ -161,12 +161,13 @@ function PropertyDetail() {
           </div>
 
           <div className="flex flex-wrap" style={{ gap: 'var(--space-sm)', flexShrink: 0 }}>
+            {/* Visible on desktop only — on mobile these live inside the menu */}
             {property.status !== 'visitada' && (
-              <button className="btn btn-secondary" onClick={() => changeStatus('visitada')} disabled={statusUpdating || deleting}>
+              <button className="btn btn-secondary hide-mobile" onClick={() => changeStatus('visitada')} disabled={statusUpdating || deleting}>
                 {statusUpdating ? 'Guardando…' : '✓ Marcar como visitada'}
               </button>
             )}
-            <Link to={`/property/${property.id}/documents`} className="btn btn-secondary">Documentos</Link>
+            <Link to={`/property/${property.id}/documents`} className="btn btn-secondary hide-mobile">Documentos</Link>
             <div className="menu">
               <button className="btn btn-secondary" aria-expanded={menuOpen} aria-haspopup="menu"
                 onClick={() => setMenuOpen(o => !o)} disabled={deleting || statusUpdating}>
@@ -179,6 +180,18 @@ function PropertyDetail() {
                 <>
                   <div className="menu__backdrop" onClick={() => setMenuOpen(false)} />
                   <div className="menu__list" role="menu">
+                    {/* Mobile-only actions (hidden on desktop via CSS) */}
+                    {property.status !== 'visitada' && (
+                      <button className="menu__item show-mobile" role="menuitem"
+                        onClick={() => { setMenuOpen(false); changeStatus('visitada'); }}>
+                        ✓ Marcar como visitada
+                      </button>
+                    )}
+                    <Link to={`/property/${property.id}/documents`} className="menu__item show-mobile" role="menuitem"
+                      onClick={() => setMenuOpen(false)}>
+                      Documentos
+                    </Link>
+                    {/* Always visible */}
                     <Link to={`/property/${property.id}/edit`} className="menu__item" role="menuitem">Editar</Link>
                     {property.status === 'visitada' && (
                       <button className="menu__item" role="menuitem" onClick={() => changeStatus('en_estudio')}>
