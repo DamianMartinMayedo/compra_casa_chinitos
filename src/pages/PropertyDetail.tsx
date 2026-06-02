@@ -160,7 +160,7 @@ function PropertyDetail() {
             </div>
           </div>
 
-          <div className="flex flex-wrap" style={{ gap: 'var(--space-sm)', flexShrink: 0 }}>
+          <div className="flex flex-wrap" style={{ gap: 'var(--space-sm)', flexShrink: 0, marginLeft: 'auto' }}>
             {/* Visible on desktop only — on mobile these live inside the menu */}
             {property.status !== 'visitada' && (
               <button className="btn btn-secondary hide-mobile" onClick={() => changeStatus('visitada')} disabled={statusUpdating || deleting}>

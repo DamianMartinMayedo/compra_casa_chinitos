@@ -246,6 +246,59 @@ textarea {
   gap: var(--space-xs);
 }
 
+/* Hamburger button — mobile only */
+.hamburger {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: var(--radius-md);
+  color: var(--color-ink-secondary);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.hamburger:hover { background: var(--color-panel); color: var(--color-ink); }
+
+/* Mobile nav panel — slides in below header */
+.nav-mobile {
+  display: none;
+  position: fixed;
+  top: 3.75rem; /* height of app-header */
+  left: 0; right: 0;
+  z-index: calc(var(--z-sticky) + 1);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-lg);
+  flex-direction: column;
+  padding: var(--space-sm);
+  gap: 2px;
+}
+.nav-mobile.is-open { display: flex; }
+
+.nav-mobile__backdrop {
+  position: fixed;
+  inset: 3.75rem 0 0 0;
+  z-index: calc(var(--z-sticky));
+  background: oklch(0 0 0 / 0.25);
+}
+
+.nav-mobile__link {
+  display: block;
+  padding: 0.65rem var(--space-md);
+  border-radius: var(--radius-md);
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--color-ink-secondary);
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+.nav-mobile__link:hover { background: var(--color-panel); color: var(--color-ink); }
+.nav-mobile__link--active { background: var(--color-accent-subtle); color: var(--color-accent); }
+
+@media (max-width: 640px) {
+  .app-nav { display: none; }
+  .hamburger { display: inline-flex; }
+}
+
 .app-nav__link {
   padding: 0.4375rem 0.75rem;
   border-radius: var(--radius-md);
