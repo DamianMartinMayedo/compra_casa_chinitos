@@ -270,11 +270,11 @@ function PropertiesList() {
           </span>
           <div className="flex flex-wrap" style={{ gap: 'var(--space-sm)' }}>
             <button className="btn btn-secondary" disabled={batchLoading}
-              onClick={() => batchPatch({ status: 'nueva' })}>De interés</button>
+              onClick={() => batchPatch({ status: 'nueva' })}>Nueva</button>
             <button className="btn btn-secondary" disabled={batchLoading}
               onClick={() => batchPatch({ status: 'por_visitar' })}>Por visitar</button>
             <button className="btn btn-secondary" disabled={batchLoading}
-              onClick={() => batchPatch({ status: 'me_interesa' })}>Visitada</button>
+              onClick={() => batchPatch({ status: 'me_interesa' })}>Me interesa</button>
             <button className="btn btn-secondary" disabled={batchLoading}
               onClick={() => batchPatch({ status: 'descartada' })}>Descartar</button>
             <button className="btn btn-danger" disabled={batchLoading}

@@ -163,14 +163,19 @@ function ChecklistManager() {
                     </select>
                     <button
                       type="button"
-                      className={item.is_active ? 'badge badge-success' : 'badge badge-neutral'}
+                      role="switch"
+                      aria-checked={item.is_active}
+                      className={`toggle${item.is_active ? ' toggle--on' : ''}`}
                       onClick={() => patchItem(item.id, { is_active: !item.is_active })}
-                      title="Activar / desactivar"
-                    >
-                      {item.is_active ? 'Activo' : 'Inactivo'}
-                    </button>
-                    <button type="button" className="btn btn-ghost text-sm item-row__delete" onClick={() => setDeleteTarget({ type: 'item', id: item.id, label: item.label })} style={{ color: 'var(--color-error)' }}>
-                      Quitar
+                      title={item.is_active ? 'Activo — clic para desactivar' : 'Inactivo — clic para activar'}
+                    />
+                    <button type="button" className="icon-btn icon-btn--danger item-row__delete"
+                      onClick={() => setDeleteTarget({ type: 'item', id: item.id, label: item.label })}
+                      title="Quitar elemento">
+                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                        <path d="M2.5 4h11M5.5 4V2.5a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1V4m1.5 0-.75 9a1 1 0 0 1-1 .93H5.75a1 1 0 0 1-1-.93L4 4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/>
+                        <path d="M6.5 7v4M9.5 7v4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round"/>
+                      </svg>
                     </button>
                   </div>
                 </div>

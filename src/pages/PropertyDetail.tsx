@@ -210,7 +210,7 @@ function PropertyDetail() {
             {/* Primary CTA — desktop: visible button; mobile: inside menu */}
             {property.status === 'nueva' && (
               <button className="btn btn-secondary hide-mobile" onClick={() => changeStatus('por_visitar')} disabled={statusUpdating || deleting}>
-                {statusUpdating ? 'Guardando…' : '📅 Por visitar'}
+                {statusUpdating ? 'Guardando…' : 'Por visitar'}
               </button>
             )}
             {property.status === 'por_visitar' && (
@@ -236,7 +236,7 @@ function PropertyDetail() {
                     {property.status === 'nueva' && (
                       <button className="menu__item show-mobile" role="menuitem"
                         onClick={() => { setMenuOpen(false); changeStatus('por_visitar'); }}>
-                        📅 Por visitar
+                        Por visitar
                       </button>
                     )}
                     {property.status === 'por_visitar' && (
