@@ -4,6 +4,7 @@ import PropertyDetail from './pages/PropertyDetail';
 import PropertyForm from './pages/PropertyForm';
 import PropertyDocuments from './pages/PropertyDocuments';
 import ChecklistManager from './pages/ChecklistManager';
+import Comparativa from './pages/Comparativa';
 import './styles/global.css';
 
 function App() {
@@ -22,6 +23,9 @@ function App() {
             <NavLink to="/checklist" className={({ isActive }) => (isActive ? 'app-nav__link app-nav__link--active' : 'app-nav__link')}>
               Checklist
             </NavLink>
+            <NavLink to="/comparativa" className={({ isActive }) => (isActive ? 'app-nav__link app-nav__link--active' : 'app-nav__link')}>
+              Comparativa
+            </NavLink>
           </nav>
         </div>
       </header>
@@ -34,6 +38,7 @@ function App() {
           <Route path="/property/:id/edit" element={<PropertyForm />} />
           <Route path="/property/:id/documents" element={<PropertyDocuments />} />
           <Route path="/checklist" element={<ChecklistManager />} />
+          <Route path="/comparativa" element={<Comparativa />} />
         </Routes>
       </main>
     </BrowserRouter>
