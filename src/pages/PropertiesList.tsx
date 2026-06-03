@@ -56,7 +56,17 @@ function PropertiesList() {
   const [error, setError] = useState<string | null>(null);
   const [sortKey, setSortKey] = useState<SortKey>('name');
   const [sortDir, setSortDir] = useState<SortDir>('asc');
-  const [statusFilter, setStatusFilter] = useState<PropertyStatus>('por_visitar');
+
+  // La pestaña activa se recuerda en sessionStorage para que al volver al
+  // listado (back-link, botón atrás, o reentrar) se conserve la última pestaña.
+  const [statusFilter, setStatusFilterState] = useState<PropertyStatus>(() => {
+    const saved = sessionStorage.getItem('casas_tab') as PropertyStatus | null;
+    return saved && STATUS_ORDER.includes(saved) ? saved : 'por_visitar';
+  });
+  const setStatusFilter = (s: PropertyStatus) => {
+    sessionStorage.setItem('casas_tab', s);
+    setStatusFilterState(s);
+  };
 
   // Batch selection
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());

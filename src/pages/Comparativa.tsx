@@ -40,6 +40,29 @@ function RatingBar({ value, polarity }: { value: number | null; polarity: boolea
   );
 }
 
+const DASH = <span className="text-muted">—</span>;
+
+// Renderiza el valor de un elemento del checklist para una casa.
+function renderValue(item: Item, r: Response | undefined): ReactNode {
+  switch (item.item_type) {
+    case 'checkbox':
+      if (r?.checked === true)  return <span style={{ color: 'var(--color-success)', fontWeight: 700 }}>Sí</span>;
+      if (r?.checked === false) return <span style={{ color: 'var(--color-error)', fontWeight: 700 }}>No</span>;
+      return DASH;
+    case 'rating':
+      return <RatingBar value={r?.rating_value ?? null} polarity={item.rating_high_is_good} />;
+    case 'textarea':
+    case 'text':
+      return r?.text_value
+        ? <span style={{ fontSize: 'var(--text-xs)', whiteSpace: 'pre-wrap' }}>{r.text_value}</span>
+        : DASH;
+    case 'number':
+      return r?.number_value != null ? <span className="price">{fmtPrice(r.number_value)}</span> : DASH;
+    default:
+      return DASH;
+  }
+}
+
 export default function Comparativa() {
   const [visitadas, setVisitadas] = useState<Property[]>([]);
   const [sections, setSections] = useState<Section[]>([]);
@@ -137,9 +160,6 @@ export default function Comparativa() {
       const secItems = itemsOf(section.id);
       if (!secItems.length) continue;
 
-      const checkboxItems = secItems.filter(i => i.item_type === 'checkbox');
-      const otherItems = secItems.filter(i => i.item_type !== 'checkbox');
-
       // Section header (spans all columns)
       cells.push(
         <div key={`sh-${section.id}`} className="cmp-cell cmp-section-head"
@@ -148,45 +168,15 @@ export default function Comparativa() {
         </div>
       );
 
-      // Checkbox items → one summary row (X/Y ✓ + list of checked labels)
-      if (checkboxItems.length > 0) {
-        cells.push(<div key={`cl-${section.id}`} className="cmp-cell cmp-label">Checks ✓</div>);
-        selProps.forEach(p => {
-          const resp = respCache[p.id] || {};
-          const checked = checkboxItems.filter(i => resp[i.id]?.checked);
-          cells.push(
-            <div key={`cv-${section.id}-${p.id}`} className="cmp-cell">
-              <span style={{ fontWeight: 700, color: checked.length === checkboxItems.length ? 'var(--color-success)' : checked.length === 0 ? 'var(--color-ink-tertiary)' : undefined }}>
-                {checked.length}/{checkboxItems.length}
-              </span>
-              {checked.length > 0 && (
-                <ul style={{ margin: '0.375rem 0 0', padding: '0 0 0 1rem', fontSize: 'var(--text-xs)', color: 'var(--color-ink-secondary)' }}>
-                  {checked.map(i => <li key={i.id}>{i.label}</li>)}
-                </ul>
-              )}
-            </div>
-          );
-        });
-      }
-
-      // Non-checkbox items (ratings, textareas, numbers) → one row each
-      otherItems.forEach(item => {
+      // Every item — in checklist order — gets its own row
+      secItems.forEach(item => {
         cells.push(<div key={`il-${item.id}`} className="cmp-cell cmp-label">{item.label}</div>);
         selProps.forEach(p => {
-          const r = respCache[p.id]?.[item.id];
-          let content: ReactNode = <span className="text-muted">—</span>;
-          if (item.item_type === 'rating') {
-            content = <RatingBar value={r?.rating_value ?? null} polarity={item.rating_high_is_good} />;
-          } else if (item.item_type === 'textarea') {
-            content = r?.text_value
-              ? <span style={{ fontSize: 'var(--text-xs)', whiteSpace: 'pre-wrap' }}>{r.text_value}</span>
-              : <span className="text-muted">—</span>;
-          } else if (item.item_type === 'number') {
-            content = r?.number_value != null
-              ? <span className="price">{fmtPrice(r.number_value)}</span>
-              : <span className="text-muted">—</span>;
-          }
-          cells.push(<div key={`iv-${item.id}-${p.id}`} className="cmp-cell">{content}</div>);
+          cells.push(
+            <div key={`iv-${item.id}-${p.id}`} className="cmp-cell">
+              {renderValue(item, respCache[p.id]?.[item.id])}
+            </div>
+          );
         });
       });
     }
@@ -299,40 +289,15 @@ export default function Comparativa() {
                       {sectionList.map(section => {
                         const secItems = itemsOf(section.id);
                         if (!secItems.length) return null;
-                        const checkboxItems = secItems.filter(i => i.item_type === 'checkbox');
-                        const otherItems = secItems.filter(i => i.item_type !== 'checkbox');
-                        const checked = checkboxItems.filter(i => resp[i.id]?.checked);
                         return (
                           <div key={section.id} className="cmp-card-section">
                             <div className="cmp-card-section__title">{section.name}</div>
-                            {checkboxItems.length > 0 && (
-                              <div className="cmp-card-row">
-                                <span className="cmp-card-row__label">Checks ✓</span>
-                                <div style={{ textAlign: 'right' }}>
-                                  <span style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: checked.length === checkboxItems.length ? 'var(--color-success)' : checked.length === 0 ? 'var(--color-ink-tertiary)' : undefined }}>
-                                    {checked.length}/{checkboxItems.length}
-                                  </span>
-                                  {checked.length > 0 && (
-                                    <ul style={{ margin: '0.25rem 0 0', padding: '0 0 0 1rem', fontSize: 'var(--text-xs)', color: 'var(--color-ink-secondary)' }}>
-                                      {checked.map(i => <li key={i.id}>{i.label}</li>)}
-                                    </ul>
-                                  )}
-                                </div>
+                            {secItems.map(item => (
+                              <div key={item.id} className="cmp-card-row">
+                                <span className="cmp-card-row__label">{item.label}</span>
+                                <div style={{ textAlign: 'right' }}>{renderValue(item, resp[item.id])}</div>
                               </div>
-                            )}
-                            {otherItems.map(item => {
-                              const r = resp[item.id];
-                              let val: ReactNode = <span className="text-muted">—</span>;
-                              if (item.item_type === 'rating') val = <RatingBar value={r?.rating_value ?? null} polarity={item.rating_high_is_good} />;
-                              else if (item.item_type === 'textarea') val = r?.text_value ? <span style={{ fontSize: 'var(--text-xs)', whiteSpace: 'pre-wrap' }}>{r.text_value}</span> : <span className="text-muted">—</span>;
-                              else if (item.item_type === 'number') val = r?.number_value != null ? <span className="price">{fmtPrice(r.number_value)}</span> : <span className="text-muted">—</span>;
-                              return (
-                                <div key={item.id} className="cmp-card-row">
-                                  <span className="cmp-card-row__label">{item.label}</span>
-                                  <div style={{ textAlign: 'right' }}>{val}</div>
-                                </div>
-                              );
-                            })}
+                            ))}
                           </div>
                         );
                       })}
