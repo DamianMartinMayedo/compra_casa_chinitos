@@ -20,7 +20,7 @@ interface Property {
   visit_time: string | null;
 }
 
-type SortKey = 'name' | 'type' | 'price_eur' | 'built_area_m2' | 'bedrooms' | 'bathrooms' | 'budget';
+type SortKey = 'name' | 'type' | 'price_eur' | 'built_area_m2' | 'bedrooms' | 'bathrooms' | 'visit_date';
 type SortDir = 'asc' | 'desc';
 
 const formatPrice = (price: number | null) =>
@@ -28,8 +28,6 @@ const formatPrice = (price: number | null) =>
     ? '—'
     : new Intl.NumberFormat('es-ES', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 }).format(price);
 
-const formatK = (n: number) =>
-  new Intl.NumberFormat('es-ES', { notation: 'compact', maximumFractionDigits: 0 }).format(n) + ' €';
 
 function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
   if (!active) {
@@ -105,6 +103,18 @@ function PropertiesList() {
     else { setSortKey(key); setSortDir('asc'); }
   };
 
+  // Auto-sort by visit date when on the Por visitar tab
+  useEffect(() => {
+    if (statusFilter === 'por_visitar') {
+      setSortKey('visit_date');
+      setSortDir('asc');
+    } else {
+      setSortKey('name');
+      setSortDir('asc');
+    }
+    clearSelection();
+  }, [statusFilter]);
+
   const counts = STATUS_ORDER.reduce((acc, s) => {
     acc[s] = properties.filter(p => p.status === s).length;
     return acc;
@@ -119,7 +129,13 @@ function PropertiesList() {
       case 'built_area_m2': cmp = (a.built_area_m2 ?? 0) - (b.built_area_m2 ?? 0); break;
       case 'bedrooms': cmp = (a.bedrooms ?? 0) - (b.bedrooms ?? 0); break;
       case 'bathrooms': cmp = (a.bathrooms ?? 0) - (b.bathrooms ?? 0); break;
-      case 'budget': cmp = (a.budget_min_eur ?? 0) - (b.budget_min_eur ?? 0); break;
+      case 'visit_date': {
+        // nulls last; combine date+time for full comparison
+        const aKey = a.visit_date ? a.visit_date + (a.visit_time ?? '') : '9999';
+        const bKey = b.visit_date ? b.visit_date + (b.visit_time ?? '') : '9999';
+        cmp = aKey.localeCompare(bKey);
+        break;
+      }
     }
     return sortDir === 'asc' ? cmp : -cmp;
   });
@@ -145,9 +161,10 @@ function PropertiesList() {
         />
         <span style={{ minWidth: 0 }}>
           <span className="dtable__name" style={{ display: 'block' }} title={property.name}>{property.name}</span>
+          {/* Sub-línea de visita solo en móvil (la columna col-sec está oculta allí) */}
           {property.visit_date && (
-            <span className="text-muted" style={{ display: 'block', fontSize: 'var(--text-xs)' }}>
-              Visita {formatVisitDate(property.visit_date, { day: 'numeric', month: 'short' })}
+            <span className="text-muted show-mobile" style={{ fontSize: 'var(--text-xs)' }}>
+              {formatVisitDate(property.visit_date, { day: 'numeric', month: 'short' })}
               {property.visit_time && ` · ${formatVisitTime(property.visit_time)}`}
             </span>
           )}
@@ -158,9 +175,17 @@ function PropertiesList() {
       <span className="col-sec num tabular">{property.built_area_m2 != null ? `${property.built_area_m2} m²` : '—'}</span>
       <span className="col-sec num tabular">{property.bedrooms ?? '—'}</span>
       <span className="col-sec num tabular">{property.bathrooms ?? '—'}</span>
-      <span className="col-sec num tabular text-muted">
-        {property.budget_min_eur != null && property.budget_max_eur != null
-          ? `${formatK(property.budget_min_eur)}–${formatK(property.budget_max_eur)}` : '—'}
+      <span className="col-sec num" style={{ fontSize: 'var(--text-xs)', lineHeight: 1.5 }}>
+        {property.visit_date
+          ? <span style={{ color: 'var(--color-ink-secondary)' }}>
+              <span style={{ display: 'block', fontWeight: 500 }}>
+                {formatVisitDate(property.visit_date, { weekday: 'short', day: 'numeric', month: 'short' })}
+              </span>
+              {property.visit_time && (
+                <span style={{ color: 'var(--color-ink-tertiary)' }}>{formatVisitTime(property.visit_time)}</span>
+              )}
+            </span>
+          : <span className="text-muted">—</span>}
       </span>
     </>
   );
@@ -196,7 +221,7 @@ function PropertiesList() {
           <div className="dtable__head">
             <span>Casa</span><span className="col-sec">Tipo</span><span>Precio</span>
             <span className="col-sec">Sup.</span><span className="col-sec">Hab.</span>
-            <span className="col-sec">Baños</span><span className="col-sec">Reforma</span>
+            <span className="col-sec">Baños</span><span className="col-sec">Visita</span>
           </div>
           {[0, 1, 2].map(i => (
             <div className="dtable__row" key={i}>
@@ -247,8 +272,8 @@ function PropertiesList() {
             <span className="col-sec num sort-header" role="columnheader" onClick={() => handleSort('bathrooms')} title="Ordenar por baños">
               Baños <SortIcon active={sortKey === 'bathrooms'} dir={sortDir} />
             </span>
-            <span className="col-sec num sort-header" role="columnheader" onClick={() => handleSort('budget')} title="Ordenar por reforma">
-              Reforma <SortIcon active={sortKey === 'budget'} dir={sortDir} />
+            <span className="col-sec num sort-header" role="columnheader" onClick={() => handleSort('visit_date')} title="Ordenar por fecha de visita">
+              Visita <SortIcon active={sortKey === 'visit_date'} dir={sortDir} />
             </span>
           </div>
           {sorted.map(property => (

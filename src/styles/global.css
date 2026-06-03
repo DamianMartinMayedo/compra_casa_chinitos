@@ -519,7 +519,7 @@ a.btn-danger:hover {
 .dtable__head,
 .dtable__row {
   display: grid;
-  grid-template-columns: minmax(0, 2.4fr) 1.1fr 1fr 0.7fr 0.6fr 0.7fr 1.3fr;
+  grid-template-columns: minmax(0, 4.5fr) 1.1fr 1fr 0.55fr 0.45fr 0.55fr 1fr;
   align-items: center;
   gap: var(--space-md);
   padding: 0.75rem var(--space-lg);
