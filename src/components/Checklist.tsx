@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
+import { ratingButtonColor } from '../status';
 
 interface Section { id: string; name: string; sort_order: number; }
 interface Item {
   id: string; section_id: string; label: string; item_type: string;
   placeholder: string; sort_order: number; is_active: boolean;
+  rating_high_is_good: boolean | null;
 }
 interface Response {
   id: string; checklist_item_id: string; checked: boolean; text_value: string;
@@ -92,23 +94,33 @@ export default function Checklist({ propertyId, mode }: { propertyId: string; mo
               onChange={e => save(item.id, 'number_value', e.target.value === '' ? null : parseFloat(e.target.value))} />
           </div>
         );
-      case 'rating':
+      case 'rating': {
+        const polarity = item.rating_high_is_good;
         return (
           <div className="field">
-            <label className="field__label">{item.label}</label>
+            <label className="field__label">
+              {item.label}
+              {polarity === true  && <span style={{ marginLeft: '0.375rem', fontSize: 'var(--text-xs)', color: 'var(--color-success)',  fontWeight: 500 }}>↑ mayor es mejor</span>}
+              {polarity === false && <span style={{ marginLeft: '0.375rem', fontSize: 'var(--text-xs)', color: 'var(--color-error)',    fontWeight: 500 }}>↑ mayor es peor</span>}
+            </label>
             <div className="rating" role="group" aria-label={item.label}>
               {[1, 2, 3, 4, 5].map(n => {
                 const current = r?.rating_value || 0;
                 const on = current >= n;
+                const btnColor = on ? ratingButtonColor(current, polarity) : undefined;
                 return (
                   <button key={n} type="button" aria-pressed={on}
                     className={on ? 'rating__btn rating__btn--on' : 'rating__btn'}
-                    onClick={() => save(item.id, 'rating_value', current === n ? (n > 1 ? n - 1 : null) : n)}>{n}</button>
+                    style={btnColor ? { background: btnColor, borderColor: btnColor } : undefined}
+                    onClick={() => save(item.id, 'rating_value', current === n ? (n > 1 ? n - 1 : null) : n)}>
+                    {n}
+                  </button>
                 );
               })}
             </div>
           </div>
         );
+      }
       case 'status':
         return (
           <div className="check-row--inline" style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 'var(--space-md)', alignItems: 'center' }}>

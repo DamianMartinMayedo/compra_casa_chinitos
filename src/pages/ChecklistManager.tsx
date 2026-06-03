@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import ConfirmDialog from '../components/ConfirmDialog';
 
 interface Section { id: string; name: string; sort_order: number; }
@@ -9,6 +9,7 @@ interface Item {
   item_type: string;
   sort_order: number;
   is_active: boolean;
+  rating_high_is_good: boolean | null;
 }
 
 const ITEM_TYPES = [
@@ -57,6 +58,35 @@ function ChecklistManager() {
   const [newSection, setNewSection] = useState('');
   const [draft, setDraft] = useState<Record<string, { label: string; type: string }>>({});
   const [deleteTarget, setDeleteTarget] = useState<{ type: 'section' | 'item'; id: string; label: string } | null>(null);
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const dragSectionRef = useRef<string | null>(null);
+  const rowRefs = useRef(new Map<string, HTMLDivElement>());
+  const prevRects = useRef<Map<string, DOMRect> | null>(null);
+
+  // FLIP: after a live reorder, slide each row from its old position to its new one
+  useLayoutEffect(() => {
+    const prev = prevRects.current;
+    if (!prev) return;
+    prevRects.current = null;
+    rowRefs.current.forEach((el, id) => {
+      const oldRect = prev.get(id);
+      if (!oldRect) return;
+      const dy = oldRect.top - el.getBoundingClientRect().top;
+      if (!dy) return;
+      el.style.transition = 'none';
+      el.style.transform = `translateY(${dy}px)`;
+      requestAnimationFrame(() => {
+        el.style.transition = 'transform 0.24s cubic-bezier(0.2, 0, 0, 1)';
+        el.style.transform = '';
+      });
+    });
+  });
+
+  const captureRects = () => {
+    const m = new Map<string, DOMRect>();
+    rowRefs.current.forEach((el, id) => m.set(id, el.getBoundingClientRect()));
+    prevRects.current = m;
+  };
 
   const reload = () =>
     Promise.all([
@@ -126,6 +156,46 @@ function ChecklistManager() {
     setItems(prev => prev.filter(i => i.id !== id));
   };
 
+  // Live reorder while hovering over another row — triggers FLIP slide.
+  // Midpoint guard prevents flicker: only swap once the pointer crosses the
+  // target's middle in the direction of travel.
+  const handleDragOverItem = (targetId: string, sectionId: string, e: React.DragEvent) => {
+    if (!draggingId || draggingId === targetId) return;
+    const list = itemsOf(sectionId);
+    const fromIdx = list.findIndex(i => i.id === draggingId);
+    const toIdx   = list.findIndex(i => i.id === targetId);
+    if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const pointerY = e.clientY - rect.top;
+    const midY = rect.height / 2;
+    // Moving down and not yet past the middle → wait
+    if (fromIdx < toIdx && pointerY < midY) return;
+    // Moving up and not yet past the middle → wait
+    if (fromIdx > toIdx && pointerY > midY) return;
+
+    captureRects();
+    const newList = [...list];
+    const [moved] = newList.splice(fromIdx, 1);
+    newList.splice(toIdx, 0, moved);
+    const orderMap = new Map(newList.map((it, idx) => [it.id, (idx + 1) * 10]));
+    setItems(prev => prev.map(i => orderMap.has(i.id) ? { ...i, sort_order: orderMap.get(i.id)! } : i));
+  };
+
+  const persistOrder = async (sectionId: string) => {
+    const list = itemsOf(sectionId);
+    await Promise.all(list.map((it, idx) =>
+      fetch(`/api/checklist/items/${it.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sort_order: (idx + 1) * 10 }) })
+    ));
+  };
+
+  const endDrag = () => {
+    const sectionId = dragSectionRef.current;
+    setDraggingId(null);
+    dragSectionRef.current = null;
+    if (sectionId) persistOrder(sectionId);
+  };
+
   if (loading) return <div className="container page"><span className="skeleton skeleton-line" style={{ width: '12rem', height: '1.75rem', display: 'block' }} /></div>;
   if (error) return <div className="container page"><div className="error">{error}</div></div>;
 
@@ -150,7 +220,36 @@ function ChecklistManager() {
 
             <div className="stack">
               {itemsOf(section.id).map(item => (
-                <div key={item.id} className="item-row">
+                <div key={item.id}
+                  ref={el => { if (el) rowRefs.current.set(item.id, el); else rowRefs.current.delete(item.id); }}
+                  className={`item-row${draggingId === item.id ? ' item-row--dragging' : ''}`}
+                  onDragOver={e => { e.preventDefault(); handleDragOverItem(item.id, item.section_id, e); }}
+                  onDrop={e => { e.preventDefault(); endDrag(); }}>
+                  {/* Drag handle */}
+                  <span
+                    className="drag-handle"
+                    draggable
+                    onDragStart={e => {
+                      e.dataTransfer.effectAllowed = 'move';
+                      // Hide the native drag ghost with an off-screen empty node
+                      // (a data-URI image can render as a broken icon mid-load).
+                      const ghost = document.createElement('div');
+                      ghost.style.cssText = 'position:absolute;top:-9999px;left:-9999px;width:1px;height:1px;';
+                      document.body.appendChild(ghost);
+                      e.dataTransfer.setDragImage(ghost, 0, 0);
+                      setTimeout(() => document.body.removeChild(ghost), 0);
+                      dragSectionRef.current = item.section_id;
+                      setDraggingId(item.id);
+                    }}
+                    onDragEnd={endDrag}
+                    title="Arrastrar para reordenar"
+                  >
+                    <svg width="10" height="14" viewBox="0 0 10 14" fill="currentColor" aria-hidden="true">
+                      <circle cx="2.5" cy="2"  r="1.3"/><circle cx="7.5" cy="2"  r="1.3"/>
+                      <circle cx="2.5" cy="7"  r="1.3"/><circle cx="7.5" cy="7"  r="1.3"/>
+                      <circle cx="2.5" cy="12" r="1.3"/><circle cx="7.5" cy="12" r="1.3"/>
+                    </svg>
+                  </span>
                   <EditableLabel defaultValue={item.label} onSave={v => patchItem(item.id, { label: v })} />
                   <div className="item-row__actions">
                     <select
@@ -161,6 +260,28 @@ function ChecklistManager() {
                     >
                       {ITEM_TYPES.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                     </select>
+                    {item.item_type === 'rating' && (
+                      <span title="Polaridad" style={{ display: 'inline-flex', gap: '2px' }}>
+                        {([true, false] as const).map(v => {
+                          const active = item.rating_high_is_good === v;
+                          return (
+                            <button key={String(v)} type="button"
+                              title={v ? 'Mayor es mejor' : 'Mayor es peor'}
+                              onClick={() => patchItem(item.id, { rating_high_is_good: active ? null : v })}
+                              style={{
+                                width: '1.5rem', height: '1.5rem', fontSize: 'var(--text-xs)',
+                                borderRadius: 'var(--radius-sm)', border: '1px solid',
+                                borderColor: active ? (v ? 'var(--color-success)' : 'var(--color-error)') : 'var(--color-border)',
+                                background: active ? (v ? 'var(--color-success-subtle)' : 'var(--color-error-subtle)') : 'transparent',
+                                color: active ? (v ? 'var(--color-success)' : 'var(--color-error)') : 'var(--color-ink-tertiary)',
+                                cursor: 'pointer', fontWeight: 700,
+                              }}>
+                              {v ? '↑' : '↓'}
+                            </button>
+                          );
+                        })}
+                      </span>
+                    )}
                     <button
                       type="button"
                       role="switch"

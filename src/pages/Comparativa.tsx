@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type ReactNode, type JSX } from 'react';
 import { Link } from 'react-router-dom';
-import { formatVisitDate, formatVisitTime, type PropertyStatus } from '../status';
+import { formatVisitDate, formatVisitTime, ratingButtonColor, type PropertyStatus } from '../status';
 
 interface Property {
   id: string; name: string; price_eur: number | null;
@@ -11,7 +11,7 @@ interface Property {
   additional_notes: string | null;
 }
 interface Section { id: string; name: string; sort_order: number; }
-interface Item { id: string; section_id: string; label: string; item_type: string; sort_order: number; is_active: boolean; }
+interface Item { id: string; section_id: string; label: string; item_type: string; sort_order: number; is_active: boolean; rating_high_is_good: boolean | null; }
 interface Response { checklist_item_id: string; checked: boolean | null; text_value: string | null; number_value: number | null; rating_value: number | null; }
 
 const DOCS_RE = /document/i;
@@ -22,15 +22,16 @@ const fmtPrice = (p: number | null) =>
 const fmtK = (n: number) =>
   new Intl.NumberFormat('es-ES', { notation: 'compact', maximumFractionDigits: 0 }).format(n) + ' €';
 
-function RatingBar({ value }: { value: number | null }) {
+function RatingBar({ value, polarity }: { value: number | null; polarity: boolean | null | undefined }) {
   if (!value) return <span className="text-muted">—</span>;
+  const fillColor = ratingButtonColor(value, polarity);
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem' }}>
       <div style={{ display: 'flex', gap: '0.15rem' }}>
         {[1, 2, 3, 4, 5].map(n => (
           <div key={n} style={{
             width: '0.9rem', height: '0.9rem', borderRadius: '0.2rem',
-            background: n <= value ? 'var(--color-accent)' : 'var(--color-border)',
+            background: n <= value ? fillColor : 'var(--color-border)',
           }} />
         ))}
       </div>
@@ -175,7 +176,7 @@ export default function Comparativa() {
           const r = respCache[p.id]?.[item.id];
           let content: ReactNode = <span className="text-muted">—</span>;
           if (item.item_type === 'rating') {
-            content = <RatingBar value={r?.rating_value ?? null} />;
+            content = <RatingBar value={r?.rating_value ?? null} polarity={item.rating_high_is_good} />;
           } else if (item.item_type === 'textarea') {
             content = r?.text_value
               ? <span style={{ fontSize: 'var(--text-xs)', whiteSpace: 'pre-wrap' }}>{r.text_value}</span>
@@ -322,7 +323,7 @@ export default function Comparativa() {
                             {otherItems.map(item => {
                               const r = resp[item.id];
                               let val: ReactNode = <span className="text-muted">—</span>;
-                              if (item.item_type === 'rating') val = <RatingBar value={r?.rating_value ?? null} />;
+                              if (item.item_type === 'rating') val = <RatingBar value={r?.rating_value ?? null} polarity={item.rating_high_is_good} />;
                               else if (item.item_type === 'textarea') val = r?.text_value ? <span style={{ fontSize: 'var(--text-xs)', whiteSpace: 'pre-wrap' }}>{r.text_value}</span> : <span className="text-muted">—</span>;
                               else if (item.item_type === 'number') val = r?.number_value != null ? <span className="price">{fmtPrice(r.number_value)}</span> : <span className="text-muted">—</span>;
                               return (
